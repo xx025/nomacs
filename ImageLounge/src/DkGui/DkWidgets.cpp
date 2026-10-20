@@ -347,18 +347,36 @@ void DkBrowseExplorer::setCurrentPath(const QString &path)
 {
     mCurrentPath = path;
 
-    if (mCompactMode)
-        setDisplayedPath(path);
+    if (mCompactMode) {
+        const DkFileInfo info(path);
+        const QString itemPath = QDir::cleanPath(info.path());
+        const QString relativePath = QDir(mDisplayedPath).relativeFilePath(itemPath);
+        const bool isInsideDisplayedDirectory = relativePath != QLatin1String("..")
+            && !relativePath.startsWith(QLatin1String("../"));
+
+        // Keep the current directory visible when previewing a file from an
+        // expanded child folder. Directories and externally opened files still
+        // update the displayed location.
+        if (info.isDir() || !isInsideDisplayedDirectory)
+            setDisplayedPath(path);
+    }
 
     DkExplorer::setCurrentPath(path);
 }
 
 void DkBrowseExplorer::fileClicked(const QModelIndex &index) const
 {
-    // In compact mode a single click only selects the item, just like a file
-    // manager. The disclosure arrow remains available for expanding folders.
-    if (!mCompactMode)
+    if (!mCompactMode) {
         DkExplorer::fileClicked(index);
+        return;
+    }
+
+    const DkFileInfo fileInfo(mFileModel->fileInfo(mSortModel->mapToSource(index)));
+
+    // A single click previews files, while folders are only selected. Folder
+    // navigation is handled exclusively by double-clicking.
+    if (!fileInfo.isDir())
+        emit openFile(fileInfo.path());
 }
 
 void DkBrowseExplorer::fileDoubleClicked(const QModelIndex &index)
@@ -373,8 +391,6 @@ void DkBrowseExplorer::fileDoubleClicked(const QModelIndex &index)
         mCurrentPath = filePath;
         setDisplayedPath(filePath);
         emit openDir(filePath);
-    } else if (!fileInfo.isDir()) {
-        emit openFile(filePath);
     }
 }
 
