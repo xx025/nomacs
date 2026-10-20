@@ -276,7 +276,7 @@ public:
 
 public slots:
     void setCurrentImage(QSharedPointer<DkImageContainerT> img);
-    void setCurrentPath(const QString &path);
+    virtual void setCurrentPath(const QString &path);
     void fileClicked(const QModelIndex &index) const;
     void showColumn(bool show);
     void setEditable(bool editable);
@@ -320,14 +320,23 @@ public slots:
     void browseClicked();
     void scrollToCurrentClicked();
     void setRootPath(const QString &root);
+    void setCurrentPath(const QString &path) override;
+    void setCompactMode(bool enabled);
+    void goToParentDirectory();
 
 protected:
     void createLayout();
     void readSettings();
     void writeSettings();
+    void setDisplayedPath(const QString &path);
 
     QString mRootPath;
-    DkElidedLabel *mRootPathLabel;
+    QString mCurrentPath;
+    QString mDisplayedPath;
+    DkElidedLabel *mRootPathLabel = nullptr;
+    QToolButton *mUpButton = nullptr;
+    QToolButton *mCompactModeButton = nullptr;
+    bool mCompactMode = false;
 };
 
 class DkOverview : public QLabel

@@ -68,6 +68,7 @@
 #include <QRegularExpression>
 #include <QScreen>
 #include <QSortFilterProxyModel>
+#include <QStyle>
 #include <QTimer>
 #include <QToolButton>
 #include <QToolTip>
@@ -315,11 +316,71 @@ void DkBrowseExplorer::scrollToCurrentClicked()
 
 void DkBrowseExplorer::setRootPath(const QString &root)
 {
-    mRootPath = root;
-    mFileTree->setRootIndex(mSortModel->mapFromSource(mFileModel->index(root)));
-    mFileModel->setRootPath(root);
-    mRootPathLabel->setText(root);
-    mRootPathLabel->setToolTip(root);
+    mRootPath = QDir(root).absolutePath();
+    mFileModel->setRootPath(mRootPath);
+
+    if (mCompactMode)
+        mCurrentPath = mRootPath;
+
+    setDisplayedPath(mRootPath);
+}
+
+void DkBrowseExplorer::setDisplayedPath(const QString &path)
+{
+    DkFileInfo info(path);
+    QString directoryPath = info.isDir() && !info.isZipFile() ? info.path() : info.dirPath();
+
+    if (directoryPath.isEmpty() || !QFileInfo(directoryPath).isDir())
+        return;
+
+    mDisplayedPath = QDir(directoryPath).absolutePath();
+    mFileTree->setRootIndex(mSortModel->mapFromSource(mFileModel->index(mDisplayedPath)));
+    mRootPathLabel->setText(mDisplayedPath);
+    mRootPathLabel->setToolTip(mDisplayedPath);
+
+    if (mUpButton)
+        mUpButton->setEnabled(QDir(mDisplayedPath).cdUp());
+}
+
+void DkBrowseExplorer::setCurrentPath(const QString &path)
+{
+    mCurrentPath = path;
+
+    if (mCompactMode)
+        setDisplayedPath(path);
+
+    DkExplorer::setCurrentPath(path);
+}
+
+void DkBrowseExplorer::setCompactMode(bool enabled)
+{
+    mCompactMode = enabled;
+    mFileTree->setRootIsDecorated(!enabled);
+    mFileTree->setItemsExpandable(!enabled);
+
+    if (mCompactModeButton && mCompactModeButton->isChecked() != enabled)
+        mCompactModeButton->setChecked(enabled);
+    if (mUpButton)
+        mUpButton->setVisible(enabled);
+
+    if (enabled) {
+        setDisplayedPath(mCurrentPath.isEmpty() ? mRootPath : mCurrentPath);
+    } else {
+        setDisplayedPath(mRootPath);
+        if (!mCurrentPath.isEmpty())
+            DkExplorer::setCurrentPath(mCurrentPath);
+    }
+}
+
+void DkBrowseExplorer::goToParentDirectory()
+{
+    QDir parentDir(mDisplayedPath);
+    if (!parentDir.cdUp())
+        return;
+
+    mCurrentPath = parentDir.absolutePath();
+    setDisplayedPath(mCurrentPath);
+    emit openDir(mCurrentPath);
 }
 
 void DkBrowseExplorer::createLayout()
@@ -327,6 +388,20 @@ void DkBrowseExplorer::createLayout()
     auto *rootPathWidget = new QWidget(this);
     auto *rpLayout = new QHBoxLayout(rootPathWidget);
     mRootPathLabel = new DkElidedLabel(rootPathWidget, "");
+
+    mUpButton = new QToolButton();
+    mUpButton->setIcon(DkImage::loadIcon(":/nomacs/img/up.svg"));
+    mUpButton->setToolTip(tr("Parent Directory"));
+    mUpButton->setFocusPolicy(Qt::ClickFocus);
+    mUpButton->setVisible(false);
+    connect(mUpButton, &QToolButton::clicked, this, &DkBrowseExplorer::goToParentDirectory);
+
+    mCompactModeButton = new QToolButton();
+    mCompactModeButton->setIcon(style()->standardIcon(QStyle::SP_FileDialogListView));
+    mCompactModeButton->setToolTip(tr("Compact Folder View"));
+    mCompactModeButton->setFocusPolicy(Qt::ClickFocus);
+    mCompactModeButton->setCheckable(true);
+    connect(mCompactModeButton, &QToolButton::toggled, this, &DkBrowseExplorer::setCompactMode);
 
     auto browseButton = new QPushButton(tr("Browse"));
     browseButton->setFocusPolicy(Qt::ClickFocus);
@@ -339,7 +414,9 @@ void DkBrowseExplorer::createLayout()
     connect(scrollButton, &QPushButton::clicked, this, &DkBrowseExplorer::scrollToCurrentClicked);
 
     rpLayout->setContentsMargins(4, 2, 2, 2);
+    rpLayout->addWidget(mUpButton);
     rpLayout->addWidget(mRootPathLabel, 1);
+    rpLayout->addWidget(mCompactModeButton);
     rpLayout->addWidget(browseButton);
     rpLayout->addWidget(scrollButton);
 
@@ -351,6 +428,7 @@ void DkBrowseExplorer::readSettings()
     DefaultSettings settings;
     settings.beginGroup(objectName());
     setRootPath(settings.value("RootPath", QDir::homePath()).toString());
+    setCompactMode(settings.value("CompactMode", false).toBool());
     settings.endGroup();
 }
 
@@ -359,6 +437,7 @@ void DkBrowseExplorer::writeSettings()
     DefaultSettings settings;
     settings.beginGroup(objectName());
     settings.setValue("RootPath", mRootPath);
+    settings.setValue("CompactMode", mCompactMode);
     settings.endGroup();
 }
 

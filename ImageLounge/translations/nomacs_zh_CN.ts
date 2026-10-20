@@ -3580,6 +3580,16 @@ This option is only useful if plugins save sidecar files - so be careful!</sourc
     </message>
     <message>
         <location filename="../src/DkGui/DkWidgets.cpp"/>
+        <source>Parent Directory</source>
+        <translation>上级目录</translation>
+    </message>
+    <message>
+        <location filename="../src/DkGui/DkWidgets.cpp"/>
+        <source>Compact Folder View</source>
+        <translation>紧凑目录视图</translation>
+    </message>
+    <message>
+        <location filename="../src/DkGui/DkWidgets.cpp"/>
         <source>Browse</source>
         <translation>浏览</translation>
     </message>
