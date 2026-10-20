@@ -290,6 +290,7 @@ DkBrowseExplorer::DkBrowseExplorer(const QString &title, QWidget *parent, Qt::Wi
     : DkExplorer(title, parent, flags)
 {
     createLayout();
+    connect(mFileTree, &QTreeView::doubleClicked, this, &DkBrowseExplorer::fileDoubleClicked);
     readSettings();
 }
 
@@ -352,11 +353,37 @@ void DkBrowseExplorer::setCurrentPath(const QString &path)
     DkExplorer::setCurrentPath(path);
 }
 
+void DkBrowseExplorer::fileClicked(const QModelIndex &index) const
+{
+    // In compact mode a single click only selects the item, just like a file
+    // manager. The disclosure arrow remains available for expanding folders.
+    if (!mCompactMode)
+        DkExplorer::fileClicked(index);
+}
+
+void DkBrowseExplorer::fileDoubleClicked(const QModelIndex &index)
+{
+    if (!mCompactMode)
+        return;
+
+    DkFileInfo fileInfo(mFileModel->fileInfo(mSortModel->mapToSource(index)));
+    const QString filePath = fileInfo.path();
+
+    if (fileInfo.isDir() && !fileInfo.isZipFile()) {
+        mCurrentPath = filePath;
+        setDisplayedPath(filePath);
+        emit openDir(filePath);
+    } else if (!fileInfo.isDir()) {
+        emit openFile(filePath);
+    }
+}
+
 void DkBrowseExplorer::setCompactMode(bool enabled)
 {
     mCompactMode = enabled;
-    mFileTree->setRootIsDecorated(!enabled);
-    mFileTree->setItemsExpandable(!enabled);
+    mFileTree->setRootIsDecorated(true);
+    mFileTree->setItemsExpandable(true);
+    mFileTree->setExpandsOnDoubleClick(!enabled);
 
     if (mCompactModeButton && mCompactModeButton->isChecked() != enabled)
         mCompactModeButton->setChecked(enabled);
