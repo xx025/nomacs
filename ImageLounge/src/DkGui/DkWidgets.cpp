@@ -319,10 +319,7 @@ void DkBrowseExplorer::setRootPath(const QString &root)
 {
     mRootPath = QDir(root).absolutePath();
     mFileModel->setRootPath(mRootPath);
-
-    if (mCompactMode)
-        mCurrentPath = mRootPath;
-
+    mCurrentPath = mRootPath;
     setDisplayedPath(mRootPath);
 }
 
@@ -347,30 +344,23 @@ void DkBrowseExplorer::setCurrentPath(const QString &path)
 {
     mCurrentPath = path;
 
-    if (mCompactMode) {
-        const DkFileInfo info(path);
-        const QString itemPath = QDir::cleanPath(info.path());
-        const QString relativePath = QDir(mDisplayedPath).relativeFilePath(itemPath);
-        const bool isInsideDisplayedDirectory = relativePath != QLatin1String("..")
-            && !relativePath.startsWith(QLatin1String("../"));
+    const DkFileInfo info(path);
+    const QString itemPath = QDir::cleanPath(info.path());
+    const QString relativePath = QDir(mDisplayedPath).relativeFilePath(itemPath);
+    const bool isInsideDisplayedDirectory = relativePath != QLatin1String("..")
+        && !relativePath.startsWith(QLatin1String("../"));
 
-        // Keep the current directory visible when previewing a file from an
-        // expanded child folder. Directories and externally opened files still
-        // update the displayed location.
-        if (info.isDir() || !isInsideDisplayedDirectory)
-            setDisplayedPath(path);
-    }
+    // Keep the current directory visible when previewing a file from an
+    // expanded child folder. Directories and externally opened files still
+    // update the displayed location.
+    if (info.isDir() || !isInsideDisplayedDirectory)
+        setDisplayedPath(path);
 
     DkExplorer::setCurrentPath(path);
 }
 
 void DkBrowseExplorer::fileClicked(const QModelIndex &index) const
 {
-    if (!mCompactMode) {
-        DkExplorer::fileClicked(index);
-        return;
-    }
-
     const DkFileInfo fileInfo(mFileModel->fileInfo(mSortModel->mapToSource(index)));
 
     // A single click previews files, while folders are only selected. Folder
@@ -381,9 +371,6 @@ void DkBrowseExplorer::fileClicked(const QModelIndex &index) const
 
 void DkBrowseExplorer::fileDoubleClicked(const QModelIndex &index)
 {
-    if (!mCompactMode)
-        return;
-
     DkFileInfo fileInfo(mFileModel->fileInfo(mSortModel->mapToSource(index)));
     const QString filePath = fileInfo.path();
 
@@ -418,27 +405,6 @@ void DkBrowseExplorer::pathEntered()
     emit openDir(mCurrentPath);
 }
 
-void DkBrowseExplorer::setCompactMode(bool enabled)
-{
-    mCompactMode = enabled;
-    mFileTree->setRootIsDecorated(true);
-    mFileTree->setItemsExpandable(true);
-    mFileTree->setExpandsOnDoubleClick(!enabled);
-
-    if (mCompactModeButton && mCompactModeButton->isChecked() != enabled)
-        mCompactModeButton->setChecked(enabled);
-    if (mUpButton)
-        mUpButton->setVisible(enabled);
-
-    if (enabled) {
-        setDisplayedPath(mCurrentPath.isEmpty() ? mRootPath : mCurrentPath);
-    } else {
-        setDisplayedPath(mRootPath);
-        if (!mCurrentPath.isEmpty())
-            DkExplorer::setCurrentPath(mCurrentPath);
-    }
-}
-
 void DkBrowseExplorer::goToParentDirectory()
 {
     QDir parentDir(mDisplayedPath);
@@ -470,15 +436,7 @@ void DkBrowseExplorer::createLayout()
     mUpButton->setIcon(DkImage::loadIcon(":/nomacs/img/up.svg"));
     mUpButton->setToolTip(tr("Parent Directory"));
     mUpButton->setFocusPolicy(Qt::ClickFocus);
-    mUpButton->setVisible(false);
     connect(mUpButton, &QToolButton::clicked, this, &DkBrowseExplorer::goToParentDirectory);
-
-    mCompactModeButton = new QToolButton();
-    mCompactModeButton->setIcon(style()->standardIcon(QStyle::SP_FileDialogListView));
-    mCompactModeButton->setToolTip(tr("Compact Folder View"));
-    mCompactModeButton->setFocusPolicy(Qt::ClickFocus);
-    mCompactModeButton->setCheckable(true);
-    connect(mCompactModeButton, &QToolButton::toggled, this, &DkBrowseExplorer::setCompactMode);
 
     auto browseButton = new QPushButton(tr("Browse"));
     browseButton->setFocusPolicy(Qt::ClickFocus);
@@ -493,7 +451,6 @@ void DkBrowseExplorer::createLayout()
     rpLayout->setContentsMargins(4, 2, 2, 2);
     rpLayout->addWidget(mUpButton);
     rpLayout->addWidget(mPathEdit, 1);
-    rpLayout->addWidget(mCompactModeButton);
     rpLayout->addWidget(browseButton);
     rpLayout->addWidget(scrollButton);
 
@@ -505,8 +462,11 @@ void DkBrowseExplorer::readSettings()
     DefaultSettings settings;
     settings.beginGroup(objectName());
     setRootPath(settings.value("RootPath", QDir::homePath()).toString());
-    setCompactMode(settings.value("CompactMode", false).toBool());
     settings.endGroup();
+
+    mFileTree->setRootIsDecorated(true);
+    mFileTree->setItemsExpandable(true);
+    mFileTree->setExpandsOnDoubleClick(false);
 }
 
 void DkBrowseExplorer::writeSettings()
@@ -514,7 +474,7 @@ void DkBrowseExplorer::writeSettings()
     DefaultSettings settings;
     settings.beginGroup(objectName());
     settings.setValue("RootPath", mRootPath);
-    settings.setValue("CompactMode", mCompactMode);
+    settings.remove("CompactMode");
     settings.endGroup();
 }
 

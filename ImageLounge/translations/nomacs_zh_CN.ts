@@ -3585,11 +3585,6 @@ This option is only useful if plugins save sidecar files - so be careful!</sourc
     </message>
     <message>
         <location filename="../src/DkGui/DkWidgets.cpp"/>
-        <source>Compact Folder View</source>
-        <translation>紧凑目录视图</translation>
-    </message>
-    <message>
-        <location filename="../src/DkGui/DkWidgets.cpp"/>
         <source>Enter a directory path</source>
         <translation>输入目录路径</translation>
     </message>

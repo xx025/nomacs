@@ -324,7 +324,6 @@ public slots:
     void fileClicked(const QModelIndex &index) const override;
     void fileDoubleClicked(const QModelIndex &index);
     void pathEntered();
-    void setCompactMode(bool enabled);
     void goToParentDirectory();
 
 protected:
@@ -338,8 +337,6 @@ protected:
     QString mDisplayedPath;
     QLineEdit *mPathEdit = nullptr;
     QToolButton *mUpButton = nullptr;
-    QToolButton *mCompactModeButton = nullptr;
-    bool mCompactMode = false;
 };
 
 class DkOverview : public QLabel
