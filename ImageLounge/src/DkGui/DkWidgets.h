@@ -323,6 +323,7 @@ public slots:
     void setCurrentPath(const QString &path) override;
     void fileClicked(const QModelIndex &index) const override;
     void fileDoubleClicked(const QModelIndex &index);
+    void pathEntered();
     void setCompactMode(bool enabled);
     void goToParentDirectory();
 
@@ -335,7 +336,7 @@ protected:
     QString mRootPath;
     QString mCurrentPath;
     QString mDisplayedPath;
-    DkElidedLabel *mRootPathLabel = nullptr;
+    QLineEdit *mPathEdit = nullptr;
     QToolButton *mUpButton = nullptr;
     QToolButton *mCompactModeButton = nullptr;
     bool mCompactMode = false;

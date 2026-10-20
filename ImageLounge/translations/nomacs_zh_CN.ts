@@ -3590,6 +3590,16 @@ This option is only useful if plugins save sidecar files - so be careful!</sourc
     </message>
     <message>
         <location filename="../src/DkGui/DkWidgets.cpp"/>
+        <source>Enter a directory path</source>
+        <translation>输入目录路径</translation>
+    </message>
+    <message>
+        <location filename="../src/DkGui/DkWidgets.cpp"/>
+        <source>The directory does not exist.</source>
+        <translation>该目录不存在。</translation>
+    </message>
+    <message>
+        <location filename="../src/DkGui/DkWidgets.cpp"/>
         <source>Browse</source>
         <translation>浏览</translation>
     </message>

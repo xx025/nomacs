@@ -336,8 +336,8 @@ void DkBrowseExplorer::setDisplayedPath(const QString &path)
 
     mDisplayedPath = QDir(directoryPath).absolutePath();
     mFileTree->setRootIndex(mSortModel->mapFromSource(mFileModel->index(mDisplayedPath)));
-    mRootPathLabel->setText(mDisplayedPath);
-    mRootPathLabel->setToolTip(mDisplayedPath);
+    mPathEdit->setText(QDir::toNativeSeparators(mDisplayedPath));
+    mPathEdit->setToolTip(mDisplayedPath);
 
     if (mUpButton)
         mUpButton->setEnabled(QDir(mDisplayedPath).cdUp());
@@ -394,6 +394,30 @@ void DkBrowseExplorer::fileDoubleClicked(const QModelIndex &index)
     }
 }
 
+void DkBrowseExplorer::pathEntered()
+{
+    QString path = QDir::fromNativeSeparators(mPathEdit->text().trimmed());
+
+    if (path == QLatin1String("~"))
+        path = QDir::homePath();
+    else if (path.startsWith(QLatin1String("~/")))
+        path.replace(0, 1, QDir::homePath());
+
+    const QFileInfo directory(path);
+    if (!directory.exists() || !directory.isDir()) {
+        QToolTip::showText(mPathEdit->mapToGlobal(QPoint(0, mPathEdit->height())),
+                           tr("The directory does not exist."),
+                           mPathEdit);
+        mPathEdit->setText(QDir::toNativeSeparators(mDisplayedPath));
+        mPathEdit->selectAll();
+        return;
+    }
+
+    mCurrentPath = directory.absoluteFilePath();
+    setDisplayedPath(mCurrentPath);
+    emit openDir(mCurrentPath);
+}
+
 void DkBrowseExplorer::setCompactMode(bool enabled)
 {
     mCompactMode = enabled;
@@ -430,7 +454,17 @@ void DkBrowseExplorer::createLayout()
 {
     auto *rootPathWidget = new QWidget(this);
     auto *rpLayout = new QHBoxLayout(rootPathWidget);
-    mRootPathLabel = new DkElidedLabel(rootPathWidget, "");
+    mPathEdit = new QLineEdit(rootPathWidget);
+    mPathEdit->setClearButtonEnabled(true);
+    mPathEdit->setPlaceholderText(tr("Enter a directory path"));
+    connect(mPathEdit, &QLineEdit::returnPressed, this, &DkBrowseExplorer::pathEntered);
+
+    auto *pathCompleter = new QCompleter(mPathEdit);
+    auto *pathModel = new QFileSystemModel(pathCompleter);
+    pathModel->setFilter(QDir::Dirs | QDir::NoDotAndDotDot);
+    pathModel->setRootPath(QDir::rootPath());
+    pathCompleter->setModel(pathModel);
+    mPathEdit->setCompleter(pathCompleter);
 
     mUpButton = new QToolButton();
     mUpButton->setIcon(DkImage::loadIcon(":/nomacs/img/up.svg"));
@@ -458,7 +492,7 @@ void DkBrowseExplorer::createLayout()
 
     rpLayout->setContentsMargins(4, 2, 2, 2);
     rpLayout->addWidget(mUpButton);
-    rpLayout->addWidget(mRootPathLabel, 1);
+    rpLayout->addWidget(mPathEdit, 1);
     rpLayout->addWidget(mCompactModeButton);
     rpLayout->addWidget(browseButton);
     rpLayout->addWidget(scrollButton);
