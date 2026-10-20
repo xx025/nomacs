@@ -317,6 +317,7 @@ void DkBrowseExplorer::scrollToCurrentClicked()
 
 void DkBrowseExplorer::setRootPath(const QString &root)
 {
+    mPreviewFilePath.clear();
     mRootPath = QDir(root).absolutePath();
     mFileModel->setRootPath(mRootPath);
     mCurrentPath = mRootPath;
@@ -345,28 +346,36 @@ void DkBrowseExplorer::setCurrentPath(const QString &path)
     mCurrentPath = path;
 
     const DkFileInfo info(path);
-    const QString itemPath = QDir::cleanPath(info.path());
-    const QString relativePath = QDir(mDisplayedPath).relativeFilePath(itemPath);
-    const bool isInsideDisplayedDirectory = relativePath != QLatin1String("..")
-        && !relativePath.startsWith(QLatin1String("../"));
+    const QString itemPath = QFileInfo(info.path()).absoluteFilePath();
+    const QString previewDirectory = QFileInfo(mPreviewFilePath).absolutePath();
+    const bool isExplorerPreview = !mPreviewFilePath.isEmpty()
+        && (itemPath == mPreviewFilePath || (info.isDir() && itemPath == previewDirectory));
 
-    // Keep the current directory visible when previewing a file from an
-    // expanded child folder. Directories and externally opened files still
-    // update the displayed location.
-    if (info.isDir() || !isInsideDisplayedDirectory)
+    // A file selected in the explorer may report both its file path and its
+    // containing directory while the preview loads. Neither should navigate
+    // away from the directory currently shown. Files opened externally do not
+    // carry this marker and therefore switch to their containing directory.
+    if (!isExplorerPreview)
         setDisplayedPath(path);
 
     DkExplorer::setCurrentPath(path);
 }
 
-void DkBrowseExplorer::fileClicked(const QModelIndex &index) const
+void DkBrowseExplorer::fileClicked(const QModelIndex &index)
 {
     const DkFileInfo fileInfo(mFileModel->fileInfo(mSortModel->mapToSource(index)));
 
     // A single click previews files, while folders are only selected. Folder
     // navigation is handled exclusively by double-clicking.
-    if (!fileInfo.isDir())
-        emit openFile(fileInfo.path());
+    if (!fileInfo.isDir()) {
+        mPreviewFilePath = QFileInfo(fileInfo.path()).absoluteFilePath();
+        const QString previewFilePath = mPreviewFilePath;
+        QTimer::singleShot(1500, this, [this, previewFilePath]() {
+            if (mPreviewFilePath == previewFilePath)
+                mPreviewFilePath.clear();
+        });
+        emit openFile(mPreviewFilePath);
+    }
 }
 
 void DkBrowseExplorer::fileDoubleClicked(const QModelIndex &index)
@@ -375,6 +384,7 @@ void DkBrowseExplorer::fileDoubleClicked(const QModelIndex &index)
     const QString filePath = fileInfo.path();
 
     if (fileInfo.isDir() && !fileInfo.isZipFile()) {
+        mPreviewFilePath.clear();
         mCurrentPath = filePath;
         setDisplayedPath(filePath);
         emit openDir(filePath);
@@ -401,6 +411,7 @@ void DkBrowseExplorer::pathEntered()
     }
 
     mCurrentPath = directory.absoluteFilePath();
+    mPreviewFilePath.clear();
     setDisplayedPath(mCurrentPath);
     emit openDir(mCurrentPath);
 }
@@ -411,6 +422,7 @@ void DkBrowseExplorer::goToParentDirectory()
     if (!parentDir.cdUp())
         return;
 
+    mPreviewFilePath.clear();
     mCurrentPath = parentDir.absolutePath();
     setDisplayedPath(mCurrentPath);
     emit openDir(mCurrentPath);
@@ -564,7 +576,7 @@ void DkExplorer::setCurrentPath(const QString &path)
     enableLoadSelected(loadSelected);
 }
 
-void DkExplorer::fileClicked(const QModelIndex &index) const
+void DkExplorer::fileClicked(const QModelIndex &index)
 {
     DkFileInfo fileInfo(mFileModel->fileInfo(mSortModel->mapToSource(index)));
 

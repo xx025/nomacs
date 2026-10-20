@@ -277,7 +277,7 @@ public:
 public slots:
     void setCurrentImage(QSharedPointer<DkImageContainerT> img);
     virtual void setCurrentPath(const QString &path);
-    virtual void fileClicked(const QModelIndex &index) const;
+    virtual void fileClicked(const QModelIndex &index);
     void showColumn(bool show);
     void setEditable(bool editable);
     void adjustColumnWidth();
@@ -321,7 +321,7 @@ public slots:
     void scrollToCurrentClicked();
     void setRootPath(const QString &root);
     void setCurrentPath(const QString &path) override;
-    void fileClicked(const QModelIndex &index) const override;
+    void fileClicked(const QModelIndex &index) override;
     void fileDoubleClicked(const QModelIndex &index);
     void pathEntered();
     void goToParentDirectory();
@@ -335,6 +335,7 @@ protected:
     QString mRootPath;
     QString mCurrentPath;
     QString mDisplayedPath;
+    QString mPreviewFilePath;
     QLineEdit *mPathEdit = nullptr;
     QToolButton *mUpButton = nullptr;
 };
