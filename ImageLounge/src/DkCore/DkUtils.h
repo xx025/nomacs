@@ -107,8 +107,6 @@ public:
 
     static QString resolveSymLink(const QString &filePath);
 
-    static QString getLongestNumber(const QString &str, int startIdx = 0);
-
     static void addLanguages(QComboBox *langCombo, QStringList &languages);
 
     static void initializeDebug();

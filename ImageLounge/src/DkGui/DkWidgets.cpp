@@ -64,7 +64,6 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QProgressDialog>
-#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollBar>
@@ -278,11 +277,7 @@ DkBrowseExplorer::DkBrowseExplorer(const QString &title, QWidget *parent, Qt::Wi
     : DkExplorer(title, parent, flags)
 {
     createLayout();
-    mFileTree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    mTreeScrollAnimation = new QPropertyAnimation(mFileTree->verticalScrollBar(), "value", this);
-    mTreeScrollAnimation->setEasingCurve(QEasingCurve::OutCubic);
     connect(mFileTree, &QTreeView::doubleClicked, this, &DkBrowseExplorer::fileDoubleClicked);
-    connect(mFileTree->verticalScrollBar(), &QScrollBar::sliderPressed, mTreeScrollAnimation, &QPropertyAnimation::stop);
     readSettings();
 }
 
@@ -358,7 +353,6 @@ void DkBrowseExplorer::setCurrentPath(const QString &path)
         : QDir(info.dirPath()).absolutePath();
     const bool directoryChanged = targetDirectory != mDisplayedPath;
 
-    mTreeScrollAnimation->stop();
     const QModelIndex targetIndex = mSortModel->mapFromSource(mFileModel->index(itemPath));
     const QRect targetRect = mFileTree->visualRect(targetIndex);
     const bool targetWasVisible = !directoryChanged && targetRect.isValid()
@@ -375,20 +369,12 @@ void DkBrowseExplorer::setCurrentPath(const QString &path)
 
     DkExplorer::setCurrentPath(path);
 
-    // Keep selection and image loading immediate. Only animate the file list's
-    // own scrollbar when Qt needs to reveal an item beyond the viewport.
-    if (!directoryChanged && targetIndex.isValid()) {
-        const int targetVerticalPosition = mFileTree->verticalScrollBar()->value();
+    // Updating the current image should not move the file list when the next
+    // item is already visible. Only scroll when the selection genuinely moves
+    // outside the viewport or to another directory.
+    if (targetWasVisible) {
         mFileTree->verticalScrollBar()->setValue(oldVerticalPosition);
         mFileTree->horizontalScrollBar()->setValue(oldHorizontalPosition);
-
-        if (!targetWasVisible && targetVerticalPosition != oldVerticalPosition) {
-            const int distance = qAbs(targetVerticalPosition - oldVerticalPosition);
-            mTreeScrollAnimation->setDuration(qBound(70, 70 + distance / 8, 130));
-            mTreeScrollAnimation->setStartValue(oldVerticalPosition);
-            mTreeScrollAnimation->setEndValue(targetVerticalPosition);
-            mTreeScrollAnimation->start();
-        }
     }
 }
 

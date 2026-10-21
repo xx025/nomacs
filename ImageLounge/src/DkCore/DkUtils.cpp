@@ -219,53 +219,55 @@ bool DkUtils::compLogicQString(const QString &lhs, const QString &rhs)
 
 bool DkUtils::naturalCompare(const QString &s1, const QString &s2, Qt::CaseSensitivity cs)
 {
-    int sIdx = 0;
+    int leftIndex = 0;
+    int rightIndex = 0;
 
-    // the first value is the most significant bit
-    // so we try to find the first difference in the strings
-    // this gives us an advantage:
-    // img1 and img10 are sorted correctly since the string compare
-    // does here what it should
-    // img4 and img10 are also sorted correctly since 4 < 10
-    // in addition we don't get into troubles with large numbers
-    // as we skip identical values...
-    for (; sIdx < s1.length() && sIdx < s2.length(); sIdx++)
-        if (s1[sIdx] != s2[sIdx])
-            break;
+    while (leftIndex < s1.size() && rightIndex < s2.size()) {
+        if (s1[leftIndex].isDigit() && s2[rightIndex].isDigit()) {
+            const int leftStart = leftIndex;
+            const int rightStart = rightIndex;
 
-    // if both values start with a digit
-    if (sIdx < s1.length() && sIdx < s2.length() && s1[sIdx].isDigit() && s2[sIdx].isDigit()) {
-        QString prefix = "";
+            while (leftIndex < s1.size() && s1[leftIndex].isDigit())
+                ++leftIndex;
+            while (rightIndex < s2.size() && s2[rightIndex].isDigit())
+                ++rightIndex;
 
-        // if the number has zeros we get into troubles:
-        // 101 and 12 result in '01' and '2'
-        // for double sort this means: 01 < 2 (though 101 > 12)
-        // so we simply search the last non zero number that was equal and prepend that
-        // if there is no such number (e.g. img001 vs img101) we are fine already
-        // this fixes #469
-        if (s1[sIdx] == '0' || s2[sIdx] == '0') {
-            for (int idx = sIdx - 1; idx >= 0; idx--) {
-                if (s1[idx] != '0'
-                    && s1[idx].isDigit()) { // find the last non-zero number (just check one string they are the same)
-                    prefix = s1[idx];
-                    break;
-                } else if (s1[idx] != '0')
-                    break;
-            }
+            int leftSignificant = leftStart;
+            int rightSignificant = rightStart;
+            while (leftSignificant < leftIndex && s1[leftSignificant] == QLatin1Char('0'))
+                ++leftSignificant;
+            while (rightSignificant < rightIndex && s2[rightSignificant] == QLatin1Char('0'))
+                ++rightSignificant;
+
+            const int leftDigits = leftIndex - leftSignificant;
+            const int rightDigits = rightIndex - rightSignificant;
+            if (leftDigits != rightDigits)
+                return leftDigits < rightDigits;
+
+            const int numberComparison = QStringView(s1).mid(leftSignificant, leftDigits)
+                                             .compare(QStringView(s2).mid(rightSignificant, rightDigits), Qt::CaseSensitive);
+            if (numberComparison != 0)
+                return numberComparison < 0;
+
+            // Numerically equal runs get a deterministic tie-breaker: fewer
+            // leading zeroes sort first (img1 before img001).
+            const int leftRunLength = leftIndex - leftStart;
+            const int rightRunLength = rightIndex - rightStart;
+            if (leftRunLength != rightRunLength)
+                return leftRunLength < rightRunLength;
+
+            continue;
         }
 
-        QString cs1 = prefix + getLongestNumber(s1, sIdx);
-        QString cs2 = prefix + getLongestNumber(s2, sIdx);
+        const int characterComparison = QStringView(s1).mid(leftIndex, 1).compare(QStringView(s2).mid(rightIndex, 1), cs);
+        if (characterComparison != 0)
+            return characterComparison < 0;
 
-        double n1 = cs1.toDouble();
-        double n2 = cs2.toDouble();
-
-        if (n1 != n2)
-            return n1 < n2;
+        ++leftIndex;
+        ++rightIndex;
     }
 
-    // we're good to go with a string compare here...
-    return QString::compare(s1, s2, cs) < 0;
+    return s1.size() < s2.size();
 }
 
 /// <summary>
@@ -316,18 +318,6 @@ QString DkUtils::resolveSymLink(const QString &filePath)
     }
 
     return rFilePath;
-}
-
-QString DkUtils::getLongestNumber(const QString &str, int startIdx)
-{
-    int idx;
-
-    for (idx = startIdx; idx < str.length(); idx++) {
-        if (!str[idx].isDigit())
-            break;
-    }
-
-    return str.mid(startIdx, idx - startIdx);
 }
 
 bool DkUtils::compDateCreated(const DkFileInfo &lhf, const DkFileInfo &rhf)
