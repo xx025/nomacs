@@ -562,6 +562,20 @@ void DkExplorer::createLayout()
     mFileTree->sortByColumn(0, Qt::AscendingOrder);
     mFileTree->header()->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
 
+    // QFileSystemModel can publish a row before all of its file metadata is
+    // available. A proxy sort performed during that window may compare an
+    // empty filename and keep that row at a stale position forever. Resort
+    // once after the directory has finished loading, on the next event-loop
+    // turn, so all rows use their final QFileInfo values.
+    connect(mFileModel, &QFileSystemModel::directoryLoaded, mSortModel, [this](const QString &) {
+        QTimer::singleShot(0, mSortModel, [this]() {
+            const int column = mFileTree->header()->sortIndicatorSection();
+            const Qt::SortOrder order = mFileTree->header()->sortIndicatorOrder();
+            mSortModel->invalidate();
+            mSortModel->sort(column, order);
+        });
+    });
+
     auto *widget = new QWidget(this);
     mLayout = new QVBoxLayout(widget);
     mLayout->setContentsMargins(0, 0, 0, 0);
