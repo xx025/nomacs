@@ -84,6 +84,9 @@ signals:
 public:
     void fullView() override;
 
+public slots:
+    void setPreviewAdjustments(int brightness, int contrast);
+
     // tcp actions
     void tcpSynchronize(QTransform relativeMatrix = QTransform(), bool force = false);
 
@@ -123,6 +126,8 @@ protected:
     void paintEvent(QPaintEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    bool hasDisplayAdjustment() const override;
+    QImage applyDisplayAdjustment(const QImage &image) const override;
 
     QImage mImgBg;
 
@@ -222,6 +227,9 @@ private:
 
     bool mGestureStarted = false;
     bool mDisabledBackground = false; // disables drawBackground() (frameless dialog)
+
+    int mPreviewBrightness = 0;
+    int mPreviewContrast = 0;
 
     // Fading stuff
     bool mAnimationBufferHasAlpha = false;

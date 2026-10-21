@@ -7445,4 +7445,27 @@ Please contact your system administrator for further information.</source>
         <translation>取消(&amp;C)</translation>
     </message>
 </context>
+<context>
+    <name>nmc::DkMainToolBar</name>
+    <message>
+        <source>Brightness</source>
+        <translation>亮度</translation>
+    </message>
+    <message>
+        <source>Contrast</source>
+        <translation>對比度</translation>
+    </message>
+    <message>
+        <source>Preview brightness (does not modify the image)</source>
+        <translation>預覽亮度（不修改圖片）</translation>
+    </message>
+    <message>
+        <source>Preview contrast (does not modify the image)</source>
+        <translation>預覽對比度（不修改圖片）</translation>
+    </message>
+    <message>
+        <source>Reset preview adjustments</source>
+        <translation>重設預覽調整</translation>
+    </message>
+</context>
 </TS>

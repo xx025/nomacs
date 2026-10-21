@@ -620,7 +620,8 @@ void DkBaseViewPort::draw(QPainter &frontPainter, double opacity, int flags)
 
     // this has a slight performance hit, skip if we don't need it
     std::unique_ptr<QPainter> backPainter;
-    if (targetColorSpace.isValid() && srcColorSpace != targetColorSpace) {
+    const bool colorConversionNeeded = targetColorSpace.isValid() && srcColorSpace != targetColorSpace;
+    if (colorConversionNeeded || hasDisplayAdjustment()) {
         QSize backingSize = this->size() * dpr;
         auto format = DkImage::renderFormat(img.format());
         if (mBackBuffer.size() != backingSize || mBackBuffer.format() != format) {
@@ -663,7 +664,8 @@ void DkBaseViewPort::draw(QPainter &frontPainter, double opacity, int flags)
     if (backPainter) {
         backPainter->end();
         // might be in-place or not
-        QImage converted = DkImage::convertToColorSpaceInPlace(this, mBackBuffer);
+        QImage converted = colorConversionNeeded ? DkImage::convertToColorSpaceInPlace(this, mBackBuffer) : mBackBuffer;
+        converted = applyDisplayAdjustment(converted);
         frontPainter.setWorldMatrixEnabled(false);
         frontPainter.setRenderHint(QPainter::SmoothPixmapTransform, false);
         frontPainter.drawImage(params.viewRect, converted, params.deviceRect);
@@ -671,6 +673,16 @@ void DkBaseViewPort::draw(QPainter &frontPainter, double opacity, int flags)
     }
 
     frontPainter.setOpacity(oldOpacity);
+}
+
+bool DkBaseViewPort::hasDisplayAdjustment() const
+{
+    return false;
+}
+
+QImage DkBaseViewPort::applyDisplayAdjustment(const QImage &image) const
+{
+    return image;
 }
 
 void DkBaseViewPort::renderPattern(QPainter &painter, const RenderParams &params)

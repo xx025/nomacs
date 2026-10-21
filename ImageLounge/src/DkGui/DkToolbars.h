@@ -38,6 +38,7 @@ class QDoubleSpinBox;
 class QPushButton;
 class QColorDialog;
 class QStandardItemModel;
+class QSlider;
 
 namespace nmc
 {
@@ -57,14 +58,20 @@ public:
     void setQuickAccessModel(QStandardItemModel *model);
     DkQuickAccessEdit *getQuickAccess() const;
 
+signals:
+    void previewAdjustmentsChanged(int brightness, int contrast) const;
+
 public slots:
     void closeQuickAccess();
+    void resetPreviewAdjustments();
 
 protected:
     void createLayout();
 
     DkQuickAccessEdit *mQuickAccessEdit{};
     QAction *mQuickAccessAction{};
+    QSlider *mBrightnessSlider{};
+    QSlider *mContrastSlider{};
 };
 
 class DkColorSlider : public DkWidget

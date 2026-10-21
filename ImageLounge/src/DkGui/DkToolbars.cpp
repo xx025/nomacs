@@ -53,7 +53,10 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
+#include <QSignalBlocker>
+#include <QSlider>
 #include <QToolBar>
+#include <QToolButton>
 
 namespace nmc
 {
@@ -102,7 +105,48 @@ void DkMainToolBar::allActionsAdded()
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     addWidget(spacer);
-    // addWidget(quickFilterEdit);
+
+    auto addPreviewSlider = [this](const QString &labelText, const QString &toolTip, QSlider **slider) {
+        auto *label = new QLabel(labelText, this);
+        label->setToolTip(toolTip);
+        addWidget(label);
+
+        *slider = new QSlider(Qt::Horizontal, this);
+        (*slider)->setRange(-100, 100);
+        (*slider)->setValue(0);
+        (*slider)->setFixedWidth(88);
+        (*slider)->setToolTip(toolTip);
+        addWidget(*slider);
+    };
+
+    addSeparator();
+    addPreviewSlider(tr("Brightness"), tr("Preview brightness (does not modify the image)"), &mBrightnessSlider);
+    addPreviewSlider(tr("Contrast"), tr("Preview contrast (does not modify the image)"), &mContrastSlider);
+
+    auto *resetButton = new QToolButton(this);
+    resetButton->setText(QStringLiteral("0"));
+    resetButton->setToolTip(tr("Reset preview adjustments"));
+    resetButton->setAutoRaise(true);
+    addWidget(resetButton);
+
+    const auto notifyAdjustment = [this] {
+        emit previewAdjustmentsChanged(mBrightnessSlider->value(), mContrastSlider->value());
+    };
+    connect(mBrightnessSlider, &QSlider::valueChanged, this, notifyAdjustment);
+    connect(mContrastSlider, &QSlider::valueChanged, this, notifyAdjustment);
+    connect(resetButton, &QToolButton::clicked, this, &DkMainToolBar::resetPreviewAdjustments);
+}
+
+void DkMainToolBar::resetPreviewAdjustments()
+{
+    if (!mBrightnessSlider || !mContrastSlider)
+        return;
+
+    const QSignalBlocker brightnessBlocker(mBrightnessSlider);
+    const QSignalBlocker contrastBlocker(mContrastSlider);
+    mBrightnessSlider->setValue(0);
+    mContrastSlider->setValue(0);
+    emit previewAdjustmentsChanged(0, 0);
 }
 
 DkQuickAccessEdit *DkMainToolBar::getQuickAccess() const

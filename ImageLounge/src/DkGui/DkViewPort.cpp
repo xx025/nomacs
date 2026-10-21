@@ -950,6 +950,47 @@ void DkViewPort::paintEvent(QPaintEvent *event)
     QGraphicsView::paintEvent(event);
 }
 
+void DkViewPort::setPreviewAdjustments(int brightness, int contrast)
+{
+    brightness = qBound(-100, brightness, 100);
+    contrast = qBound(-100, contrast, 100);
+
+    if (mPreviewBrightness == brightness && mPreviewContrast == contrast)
+        return;
+
+    mPreviewBrightness = brightness;
+    mPreviewContrast = contrast;
+    viewport()->update();
+}
+
+bool DkViewPort::hasDisplayAdjustment() const
+{
+    return mPreviewBrightness != 0 || mPreviewContrast != 0;
+}
+
+QImage DkViewPort::applyDisplayAdjustment(const QImage &image) const
+{
+    if (!hasDisplayAdjustment() || image.isNull())
+        return image;
+
+    QImage adjusted = image.convertToFormat(QImage::Format_ARGB32);
+    const double contrastFactor = std::pow(2.0, mPreviewContrast / 100.0);
+    const double brightnessOffset = mPreviewBrightness * 2.55;
+
+    for (int y = 0; y < adjusted.height(); ++y) {
+        auto *pixels = reinterpret_cast<QRgb *>(adjusted.scanLine(y));
+        for (int x = 0; x < adjusted.width(); ++x) {
+            const QRgb pixel = pixels[x];
+            const int red = qBound(0, qRound((qRed(pixel) - 128) * contrastFactor + 128 + brightnessOffset), 255);
+            const int green = qBound(0, qRound((qGreen(pixel) - 128) * contrastFactor + 128 + brightnessOffset), 255);
+            const int blue = qBound(0, qRound((qBlue(pixel) - 128) * contrastFactor + 128 + brightnessOffset), 255);
+            pixels[x] = qRgba(red, green, blue, qAlpha(pixel));
+        }
+    }
+
+    return adjusted;
+}
+
 void DkViewPort::leaveEvent(QEvent *event)
 {
     // hide navigation buttons if the mouse leaves the viewport

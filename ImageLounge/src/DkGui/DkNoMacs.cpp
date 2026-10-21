@@ -175,6 +175,19 @@ void DkNoMacs::init()
 
     if (DkSettings::normalMode(DkSettingsManager::param().app().appMode) != DkSettings::mode_frameless) {
         DkToolBarManager::inst().showDefaultToolBar(DkSettingsManager::param().app().showToolBar);
+        if (auto *previewToolBar = DkToolBarManager::inst().defaultToolBar()) {
+            connect(previewToolBar,
+                    &DkMainToolBar::previewAdjustmentsChanged,
+                    this,
+                    [this](int brightness, int contrast) {
+                        if (auto *viewPort = getTabWidget()->getViewPort())
+                            viewPort->setPreviewAdjustments(brightness, contrast);
+                    });
+            connect(getTabWidget(),
+                    &DkCentralWidget::imageUpdatedSignal,
+                    previewToolBar,
+                    &DkMainToolBar::resetPreviewAdjustments);
+        }
         showMenuBar(DkSettingsManager::param().app().showMenuBar);
         DkStatusBarManager::instance().show(DkSettingsManager::param().app().showStatusBar);
     }

@@ -245,6 +245,11 @@ protected:
     // draw the entire viewport
     virtual void draw(QPainter &frontPainter, double opacity = 1.0, int flags = draw_default);
 
+    // Optional display-only post processing. The returned image is painted to the
+    // viewport but never replaces the image stored by the loader.
+    virtual bool hasDisplayAdjustment() const;
+    virtual QImage applyDisplayAdjustment(const QImage &image) const;
+
     // fill entire viewport with bg color, image draws on top
     virtual void eraseBackground(QPainter &painter) const;
 
