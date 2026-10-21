@@ -64,6 +64,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QProgressDialog>
+#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScreen>
@@ -88,6 +89,12 @@ DkFolderScrollBar::DkFolderScrollBar(QWidget *parent)
 {
     setObjectName("DkFolderScrollBar");
     setOrientation(Qt::Horizontal);
+    setSingleStep(PositionScale);
+    setPageStep(PositionScale);
+
+    mValueAnimation = new QPropertyAnimation(this, "value", this);
+    mValueAnimation->setDuration(120);
+    mValueAnimation->setEasingCurve(QEasingCurve::OutCubic);
     init();
 }
 
@@ -97,22 +104,31 @@ void DkFolderScrollBar::updateDir(QVector<QSharedPointer<DkImageContainerT>> ima
 {
     // updateDir() comes from the loader, the loader manages the current image,
     // so setMaximum() cannot be allowed to change the current image
+    mValueAnimation->stop();
     blockSignals(true);
-    setMaximum(images.size() - 1);
+    setMaximum(qMax(0, images.size() - 1) * PositionScale);
     blockSignals(false);
 }
 
 void DkFolderScrollBar::updateFile(int idx)
 {
     if (isActive()) {
-        blockSignals(true);
-        setValue(idx);
-        blockSignals(false);
+        const int targetPosition = qBound(0, idx * PositionScale, maximum());
+        if (value() == targetPosition)
+            return;
+
+        // Restart from the handle's current visual position so rapid image
+        // changes remain continuous rather than queuing discrete jumps.
+        mValueAnimation->stop();
+        mValueAnimation->setStartValue(value());
+        mValueAnimation->setEndValue(targetPosition);
+        mValueAnimation->start();
     }
 }
 
 void DkFolderScrollBar::mousePressEvent(QMouseEvent *event)
 {
+    mValueAnimation->stop();
     blockSignals(true);
     QSlider::mousePressEvent(event);
 }
@@ -121,7 +137,7 @@ void DkFolderScrollBar::mouseReleaseEvent(QMouseEvent *event)
 {
     QSlider::mouseReleaseEvent(event);
     blockSignals(false);
-    emit loadFileSignal(value());
+    emit loadFileSignal(qRound(static_cast<double>(value()) / PositionScale));
 }
 
 void DkFolderScrollBar::wheelEvent(QWheelEvent *event)
@@ -130,7 +146,9 @@ void DkFolderScrollBar::wheelEvent(QWheelEvent *event)
 
     int dy = event->angleDelta().y();
     int step = dy < 0 ? 1 : -1;
-    int v = qBound(0, value() + step, maximum());
+    const int currentIndex = qRound(static_cast<double>(value()) / PositionScale);
+    const int maximumIndex = maximum() / PositionScale;
+    int v = qBound(0, currentIndex + step, maximumIndex);
 
     emit loadFileSignal(v);
 }
