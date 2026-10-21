@@ -46,6 +46,7 @@
 class QDoubleSpinBox;
 class QFileIconProvider;
 class QBoxLayout;
+class QPropertyAnimation;
 class QProgressDialog;
 class QTreeView;
 class QVBoxLayout;
@@ -338,6 +339,7 @@ protected:
     QString mPreviewFilePath;
     QLineEdit *mPathEdit = nullptr;
     QToolButton *mUpButton = nullptr;
+    QPropertyAnimation *mTreeScrollAnimation = nullptr;
 };
 
 class DkOverview : public QLabel
