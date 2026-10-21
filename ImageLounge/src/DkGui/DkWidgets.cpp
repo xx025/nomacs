@@ -343,13 +343,19 @@ void DkBrowseExplorer::setDisplayedPath(const QString &path)
 
 void DkBrowseExplorer::setCurrentPath(const QString &path)
 {
-    mCurrentPath = path;
-
     const DkFileInfo info(path);
     const QString itemPath = QFileInfo(info.path()).absoluteFilePath();
     const QString previewDirectory = QFileInfo(mPreviewFilePath).absolutePath();
     const bool isExplorerPreview = !mPreviewFilePath.isEmpty()
         && (itemPath == mPreviewFilePath || (info.isDir() && itemPath == previewDirectory));
+
+    // Loading a preview can emit the containing directory after the file
+    // signal. Selecting that directory would make QTreeView scroll away from
+    // the file the user clicked, so ignore this secondary update entirely.
+    if (isExplorerPreview && info.isDir())
+        return;
+
+    mCurrentPath = path;
 
     // A file selected in the explorer may report both its file path and its
     // containing directory while the preview loads. Neither should navigate
@@ -479,6 +485,9 @@ void DkBrowseExplorer::readSettings()
     mFileTree->setRootIsDecorated(true);
     mFileTree->setItemsExpandable(true);
     mFileTree->setExpandsOnDoubleClick(false);
+    mFileTree->setUniformRowHeights(true);
+    mFileTree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    mFileTree->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
 }
 
 void DkBrowseExplorer::writeSettings()
