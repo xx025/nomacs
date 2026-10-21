@@ -186,7 +186,7 @@ void DkNoMacs::init()
             connect(getTabWidget(),
                     &DkCentralWidget::imageUpdatedSignal,
                     previewToolBar,
-                    &DkMainToolBar::resetPreviewAdjustments);
+                    &DkMainToolBar::imageChanged);
         }
         showMenuBar(DkSettingsManager::param().app().showMenuBar);
         DkStatusBarManager::instance().show(DkSettingsManager::param().app().showStatusBar);

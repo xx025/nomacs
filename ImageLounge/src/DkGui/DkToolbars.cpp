@@ -101,15 +101,11 @@ void DkMainToolBar::closeQuickAccess()
 
 void DkMainToolBar::allActionsAdded()
 {
-    // right align search filters
-    auto *spacer = new QWidget(this);
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    addWidget(spacer);
-
-    auto addPreviewSlider = [this](const QString &labelText, const QString &toolTip, QSlider **slider) {
-        auto *label = new QLabel(labelText, this);
-        label->setToolTip(toolTip);
-        addWidget(label);
+    auto addPreviewSlider = [this](const QString &iconPath, const QString &toolTip, QSlider **slider) {
+        auto *iconLabel = new QLabel(this);
+        iconLabel->setPixmap(DkImage::loadIcon(iconPath).pixmap(QSize(18, 18)));
+        iconLabel->setToolTip(toolTip);
+        addWidget(iconLabel);
 
         *slider = new QSlider(Qt::Horizontal, this);
         (*slider)->setRange(-100, 100);
@@ -120,11 +116,24 @@ void DkMainToolBar::allActionsAdded()
     };
 
     addSeparator();
-    addPreviewSlider(tr("Brightness"), tr("Preview brightness (does not modify the image)"), &mBrightnessSlider);
-    addPreviewSlider(tr("Contrast"), tr("Preview contrast (does not modify the image)"), &mContrastSlider);
+    addPreviewSlider(QStringLiteral(":/nomacs/img/exposure.svg"),
+                     tr("Preview brightness (does not modify the image)"),
+                     &mBrightnessSlider);
+    addPreviewSlider(QStringLiteral(":/nomacs/img/auto-adjust.svg"),
+                     tr("Preview contrast (does not modify the image)"),
+                     &mContrastSlider);
+
+    mPreviewLockButton = new QToolButton(this);
+    QIcon lockIcon = DkImage::loadIcon(QStringLiteral(":/nomacs/img/lock-unlocked.svg"));
+    lockIcon.addFile(QStringLiteral(":/nomacs/img/lock.svg"), QSize(), QIcon::Normal, QIcon::On);
+    mPreviewLockButton->setIcon(lockIcon);
+    mPreviewLockButton->setToolTip(tr("Keep preview adjustments when switching images"));
+    mPreviewLockButton->setCheckable(true);
+    mPreviewLockButton->setAutoRaise(true);
+    addWidget(mPreviewLockButton);
 
     auto *resetButton = new QToolButton(this);
-    resetButton->setText(QStringLiteral("0"));
+    resetButton->setIcon(DkImage::loadIcon(QStringLiteral(":/nomacs/img/gradient-reset.svg")));
     resetButton->setToolTip(tr("Reset preview adjustments"));
     resetButton->setAutoRaise(true);
     addWidget(resetButton);
@@ -134,7 +143,16 @@ void DkMainToolBar::allActionsAdded()
     };
     connect(mBrightnessSlider, &QSlider::valueChanged, this, notifyAdjustment);
     connect(mContrastSlider, &QSlider::valueChanged, this, notifyAdjustment);
+    connect(mPreviewLockButton, &QToolButton::toggled, this, [this](bool locked) {
+        mPreviewLockButton->setToolTip(locked ? tr("Preview adjustments are locked")
+                                              : tr("Keep preview adjustments when switching images"));
+    });
     connect(resetButton, &QToolButton::clicked, this, &DkMainToolBar::resetPreviewAdjustments);
+
+    // Keep the preview controls beside the native actions; quick access stays right-aligned.
+    auto *spacer = new QWidget(this);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    addWidget(spacer);
 }
 
 void DkMainToolBar::resetPreviewAdjustments()
@@ -147,6 +165,12 @@ void DkMainToolBar::resetPreviewAdjustments()
     mBrightnessSlider->setValue(0);
     mContrastSlider->setValue(0);
     emit previewAdjustmentsChanged(0, 0);
+}
+
+void DkMainToolBar::imageChanged()
+{
+    if (!mPreviewLockButton || !mPreviewLockButton->isChecked())
+        resetPreviewAdjustments();
 }
 
 DkQuickAccessEdit *DkMainToolBar::getQuickAccess() const

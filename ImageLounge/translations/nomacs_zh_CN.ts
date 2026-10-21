@@ -7500,5 +7500,13 @@ Please contact your system administrator for further information.</source>
         <source>Reset preview adjustments</source>
         <translation>重置预览调整</translation>
     </message>
+    <message>
+        <source>Keep preview adjustments when switching images</source>
+        <translation>切换图片时保留预览调整</translation>
+    </message>
+    <message>
+        <source>Preview adjustments are locked</source>
+        <translation>预览调整已锁定</translation>
+    </message>
 </context>
 </TS>

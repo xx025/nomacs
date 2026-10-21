@@ -39,6 +39,7 @@ class QPushButton;
 class QColorDialog;
 class QStandardItemModel;
 class QSlider;
+class QToolButton;
 
 namespace nmc
 {
@@ -64,6 +65,7 @@ signals:
 public slots:
     void closeQuickAccess();
     void resetPreviewAdjustments();
+    void imageChanged();
 
 protected:
     void createLayout();
@@ -72,6 +74,7 @@ protected:
     QAction *mQuickAccessAction{};
     QSlider *mBrightnessSlider{};
     QSlider *mContrastSlider{};
+    QToolButton *mPreviewLockButton{};
 };
 
 class DkColorSlider : public DkWidget
