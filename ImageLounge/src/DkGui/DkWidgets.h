@@ -46,7 +46,6 @@
 class QDoubleSpinBox;
 class QFileIconProvider;
 class QBoxLayout;
-class QPropertyAnimation;
 class QProgressDialog;
 class QTreeView;
 class QVBoxLayout;
@@ -211,9 +210,6 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
     QColor mBgCol;
-    QPropertyAnimation *mValueAnimation = nullptr;
-
-    static constexpr int PositionScale = 1000;
 
     void init();
 };

@@ -64,9 +64,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QProgressDialog>
-#include <QPropertyAnimation>
 #include <QPushButton>
-#include <QRegularExpression>
 #include <QScreen>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
@@ -89,12 +87,6 @@ DkFolderScrollBar::DkFolderScrollBar(QWidget *parent)
 {
     setObjectName("DkFolderScrollBar");
     setOrientation(Qt::Horizontal);
-    setSingleStep(PositionScale);
-    setPageStep(PositionScale);
-
-    mValueAnimation = new QPropertyAnimation(this, "value", this);
-    mValueAnimation->setDuration(120);
-    mValueAnimation->setEasingCurve(QEasingCurve::OutCubic);
     init();
 }
 
@@ -104,31 +96,22 @@ void DkFolderScrollBar::updateDir(QVector<QSharedPointer<DkImageContainerT>> ima
 {
     // updateDir() comes from the loader, the loader manages the current image,
     // so setMaximum() cannot be allowed to change the current image
-    mValueAnimation->stop();
     blockSignals(true);
-    setMaximum(qMax(0, images.size() - 1) * PositionScale);
+    setMaximum(images.size() - 1);
     blockSignals(false);
 }
 
 void DkFolderScrollBar::updateFile(int idx)
 {
     if (isActive()) {
-        const int targetPosition = qBound(0, idx * PositionScale, maximum());
-        if (value() == targetPosition)
-            return;
-
-        // Restart from the handle's current visual position so rapid image
-        // changes remain continuous rather than queuing discrete jumps.
-        mValueAnimation->stop();
-        mValueAnimation->setStartValue(value());
-        mValueAnimation->setEndValue(targetPosition);
-        mValueAnimation->start();
+        blockSignals(true);
+        setValue(idx);
+        blockSignals(false);
     }
 }
 
 void DkFolderScrollBar::mousePressEvent(QMouseEvent *event)
 {
-    mValueAnimation->stop();
     blockSignals(true);
     QSlider::mousePressEvent(event);
 }
@@ -137,7 +120,7 @@ void DkFolderScrollBar::mouseReleaseEvent(QMouseEvent *event)
 {
     QSlider::mouseReleaseEvent(event);
     blockSignals(false);
-    emit loadFileSignal(qRound(static_cast<double>(value()) / PositionScale));
+    emit loadFileSignal(value());
 }
 
 void DkFolderScrollBar::wheelEvent(QWheelEvent *event)
@@ -146,9 +129,7 @@ void DkFolderScrollBar::wheelEvent(QWheelEvent *event)
 
     int dy = event->angleDelta().y();
     int step = dy < 0 ? 1 : -1;
-    const int currentIndex = qRound(static_cast<double>(value()) / PositionScale);
-    const int maximumIndex = maximum() / PositionScale;
-    int v = qBound(0, currentIndex + step, maximumIndex);
+    int v = qBound(0, value() + step, maximum());
 
     emit loadFileSignal(v);
 }
@@ -265,43 +246,30 @@ DkFileSystemModel::DkFileSystemModel(QObject *parent /* = 0 */)
 DkSortFileProxyModel::DkSortFileProxyModel(QObject *parent /* = 0 */)
     : QSortFilterProxyModel(parent)
 {
+    // QFileSystemModel populates large folders incrementally. Keep every new
+    // batch sorted instead of leaving late arrivals appended at the bottom.
+    setDynamicSortFilter(true);
 }
 
 bool DkSortFileProxyModel::lessThan(const QModelIndex &left, const QModelIndex &right) const
 {
-    if (left.data().canConvert(QMetaType(QMetaType::QUrl))) {
-        QFileInfo lf = QFileInfo(left.data().toString());
-        QFileInfo rf = QFileInfo(right.data().toString());
+    // Natural filename sorting is only meaningful for the name column. Let Qt
+    // retain its native size/type/date ordering for the remaining columns.
+    if (left.column() != 0 || right.column() != 0)
+        return QSortFilterProxyModel::lessThan(left, right);
 
-        // could not find a better way to tell files from dirs appart (isDir() is not what we expect)
-        if (lf.suffix().isEmpty() && !rf.suffix().isEmpty())
-            return true;
-        else if (!lf.suffix().isEmpty() && rf.suffix().isEmpty())
-            return false;
+    const auto *fileModel = qobject_cast<const QFileSystemModel *>(sourceModel());
+    if (!fileModel)
+        return QSortFilterProxyModel::lessThan(left, right);
 
-        QString ls = (!lf.fileName().isEmpty()) ? lf.fileName() : lf.absoluteFilePath(); // otherwise e.g. C: is empty
-        QString rs = (!rf.fileName().isEmpty()) ? rf.fileName() : rf.absoluteFilePath();
+    const QFileInfo lf = fileModel->fileInfo(left);
+    const QFileInfo rf = fileModel->fileInfo(right);
 
-        QString ld = ls.section(QRegularExpression("[A-Z]:"), 1, -1, QString::SectionIncludeLeadingSep);
+    if (lf.isDir() != rf.isDir())
+        return lf.isDir();
 
-        // sort by drive letter if present
-        if (!ld.isEmpty()) {
-            ld.truncate(2);
-            ls = ld;
-        }
+    return DkUtils::compLogicQString(lf.fileName(), rf.fileName());
 
-        QString rd = rs.section(QRegularExpression("[A-Z]:"), 1, -1, QString::SectionIncludeLeadingSep);
-
-        // sort by drive letter if present
-        if (!rd.isEmpty()) {
-            rd.truncate(2);
-            rs = rd;
-        }
-
-        return DkUtils::compLogicQString(ls, rs);
-    }
-
-    return QSortFilterProxyModel::lessThan(left, right);
 }
 
 // -------------------------------------------------------------------- DkBrowseExplorer
@@ -583,14 +551,15 @@ void DkExplorer::createLayout()
     mSortModel->setSortLocaleAware(true);
 
     mFileTree = new QTreeView(this);
-    mFileTree->setSortingEnabled(true);
     mFileTree->setModel(mSortModel);
+    mFileTree->setSortingEnabled(true);
     mFileTree->setDragEnabled(true);
     mFileTree->setAcceptDrops(true);
     mFileTree->setFocusPolicy(Qt::ClickFocus);
 
     // by default descendingOrder is set
     mFileTree->header()->setSortIndicator(0, Qt::AscendingOrder);
+    mFileTree->sortByColumn(0, Qt::AscendingOrder);
     mFileTree->header()->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
 
     auto *widget = new QWidget(this);
