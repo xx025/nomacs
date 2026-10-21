@@ -67,6 +67,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScreen>
+#include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QStyle>
 #include <QTimer>
@@ -332,7 +333,11 @@ void DkBrowseExplorer::setDisplayedPath(const QString &path)
     if (directoryPath.isEmpty() || !QFileInfo(directoryPath).isDir())
         return;
 
-    mDisplayedPath = QDir(directoryPath).absolutePath();
+    const QString absoluteDirectoryPath = QDir(directoryPath).absolutePath();
+    if (absoluteDirectoryPath == mDisplayedPath)
+        return;
+
+    mDisplayedPath = absoluteDirectoryPath;
     mFileTree->setRootIndex(mSortModel->mapFromSource(mFileModel->index(mDisplayedPath)));
     mPathEdit->setText(QDir::toNativeSeparators(mDisplayedPath));
     mPathEdit->setToolTip(mDisplayedPath);
@@ -357,6 +362,18 @@ void DkBrowseExplorer::setCurrentPath(const QString &path)
 
     mCurrentPath = path;
 
+    const QString targetDirectory = info.isDir() && !info.isZipFile()
+        ? QDir(info.path()).absolutePath()
+        : QDir(info.dirPath()).absolutePath();
+    const bool directoryChanged = targetDirectory != mDisplayedPath;
+
+    const QModelIndex targetIndex = mSortModel->mapFromSource(mFileModel->index(itemPath));
+    const QRect targetRect = mFileTree->visualRect(targetIndex);
+    const bool targetWasVisible = !directoryChanged && targetRect.isValid()
+        && mFileTree->viewport()->rect().intersects(targetRect);
+    const int oldVerticalPosition = mFileTree->verticalScrollBar()->value();
+    const int oldHorizontalPosition = mFileTree->horizontalScrollBar()->value();
+
     // A file selected in the explorer may report both its file path and its
     // containing directory while the preview loads. Neither should navigate
     // away from the directory currently shown. Files opened externally do not
@@ -365,6 +382,14 @@ void DkBrowseExplorer::setCurrentPath(const QString &path)
         setDisplayedPath(path);
 
     DkExplorer::setCurrentPath(path);
+
+    // Updating the current image should not move the file list when the next
+    // item is already visible. Only scroll when the selection genuinely moves
+    // outside the viewport or to another directory.
+    if (targetWasVisible) {
+        mFileTree->verticalScrollBar()->setValue(oldVerticalPosition);
+        mFileTree->horizontalScrollBar()->setValue(oldHorizontalPosition);
+    }
 }
 
 void DkBrowseExplorer::fileClicked(const QModelIndex &index)
